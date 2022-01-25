@@ -53,7 +53,7 @@ void EdgeSenseDFS(Instance &instance, int face, set<int> &inclusion,
     }
   }
   for (auto &adj : instance.face_graph_[face]) {
-    adj.grows_ = not inclusion.count(adj.circle_);
+    adj.grows_ = !inclusion.count(adj.circle_);
     if (vis[adj.to_])
       continue;
 
@@ -134,7 +134,7 @@ void AddFaceEdges(Instance &instance, int from,
     // int circ = he->curve().data().begin();
 
     int to = he->twin()->face()->data();
-    if (not neighbours.count(to)) {
+    if (!neighbours.count(to)) {
       neighbours.insert(to);
       int circle = *he->curve().data().begin();
       Instance::FaceAdjacency adj;
@@ -160,7 +160,7 @@ void BuildArrangementData(Instance &instance) {
     Circle c(a, b);
 
     int circle_index = 0;
-    while (circle_index < circles.size() and circles[circle_index] != c) {
+    while (circle_index < circles.size() && circles[circle_index] != c) {
       circle_index++;
     }
 
@@ -173,7 +173,6 @@ void BuildArrangementData(Instance &instance) {
       instance.circle_to_edges_.push_back({i});
     }
   }
-
   Arrangement arrangement;
   FaceIndexObserver face_indexer(arrangement);
   insert(arrangement, curves.begin(), curves.end());
@@ -198,7 +197,7 @@ void BuildArrangementData(Instance &instance) {
   instance.face_area_.resize(arrangement.number_of_faces());
   for (auto fit = arrangement.faces_begin(); fit != arrangement.faces_end();
        ++fit) {
-    if (not fit->is_unbounded()) {
+    if (!fit->is_unbounded()) {
       instance.face_area_[fit->data()] =
           max(FaceArea(instance, fit->outer_ccb(), circles), 0.);
     }

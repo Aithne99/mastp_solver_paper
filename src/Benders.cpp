@@ -12,7 +12,7 @@ void DFS(const Instance &instance, const vector<double> &x,
 
   visited[face] = true;
 
-  if (not active.empty()) {
+  if (!active.empty()) {
     int edge = active.begin()->second;
     w[edge] += instance.face_area_[face];
   } else {

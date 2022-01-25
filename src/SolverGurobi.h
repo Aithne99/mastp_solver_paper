@@ -1,11 +1,14 @@
-#ifdef CPLEX
-#ifndef H_SOLVER_
-#define H_SOLVER_
+#ifndef H_SOLVER_GUROBI_
+#define H_SOLVER_GUROBI_
 
 #include <vector>
 #include <set>
 
-#include "cplex.h"
+#ifdef WIN32
+#include "C:\gurobi912\win64\include\gurobi_c++.h"
+#else
+#include "gurobi_c++.h"
+#endif
 
 #include "Instance.h"
 #include "SEC.h"
@@ -13,13 +16,13 @@
 
 using namespace std;
 
-struct Solver {
+struct SolverGurobi {
   Instance& instance_;
 
-  CPXENVptr env_;
-  CPXLPptr model_;
+  GRBEnv* env_ = nullptr;
+  GRBModel* model_ = nullptr;
 
-  Solver(Instance& instance) : instance_(instance) {}
+  SolverGurobi(Instance& instance) : instance_(instance) {}
 
   void BuildModel();
 
@@ -81,9 +84,6 @@ struct Solver {
 
   void AddArcEdgeCouplingConstraints();
 
-  void SetCPLEXParameters();
+  void SetSolverParameters();
 };
-
-
-#endif
 #endif

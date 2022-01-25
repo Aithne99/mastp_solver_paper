@@ -1,6 +1,8 @@
+#ifdef PREPROCESS_ARRANGEMENT
 #include "Arrangement.h"
+#endif
 #include "Instance.h"
-#include "Solver.h"
+#include "SolverGurobi.h"
 #include "Timer.h"
 #include <algorithm>
 #include <cassert>
@@ -12,30 +14,34 @@
 using namespace std;
 
 int main(int argc, char *argv[]) {
-  Timer timer;
-  timer.Start();
-
   Instance instance;
+#ifdef PREPROCESS_ARRANGEMENT
   cin >> instance.n_;
   for (int i = 0; i < instance.n_; i++) {
-    int x, y;
-    cin >> x >> y;
-    instance.points_.push_back({x, y});
+      int x, y;
+      cin >> x >> y;
+      instance.points_.push_back({ x, y });
   }
 
   for (int i = 0; i < instance.n_; i++) {
-    for (int j = i + 1; j < instance.n_; j++) {
-      instance.edges_.push_back({i, j});
-    }
+      for (int j = i + 1; j < instance.n_; j++) {
+          instance.edges_.push_back({ i, j });
+      }
   }
 
   BuildArrangementData(instance);
 
-  timer.Pause();
+  instance.PrintArrangementData(argc, argv);
+#else
+  Timer timer;
+  timer.Start();
 
-  Solver solver(instance);
+  instance.load(argc, argv);
+  SolverGurobi solver(instance);
   solver.stats_.build_arrangement_time_ = timer.Read() / 1000.;
   solver.stats_.num_faces_ = instance.num_faces_;
   solver.BuildModel();
   solver.Run();
+  getchar();
+#endif
 }

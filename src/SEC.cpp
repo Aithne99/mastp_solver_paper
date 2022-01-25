@@ -24,7 +24,7 @@ struct MaxFlow {
   MaxFlow(int n_) : g(n_), level(n_), n(n_) {}
 
   void addEdge(int u, int v, int cap) {
-    if (u == v or cap == 0)
+    if (u == v || cap == 0)
       return;
     Edge e(v, cap, int(g[v].size()));
     Edge r(u, 0, int(g[u].size()));
@@ -34,15 +34,15 @@ struct MaxFlow {
 
   bool buildLevelGraph(int src, int sink) {
     fill(level.begin(), level.end(), -1);
-    while (not q.empty())
+    while (!q.empty())
       q.pop();
     level[src] = 0;
     q.push(src);
-    while (not q.empty()) {
+    while (!q.empty()) {
       int u = q.front();
       q.pop();
       for (auto e = g[u].begin(); e != g[u].end(); ++e) {
-        if (not e->cap or level[e->v] != -1)
+        if (!e->cap || level[e->v] != -1)
           continue;
         level[e->v] = level[u] + 1;
         if (e->v == sink)
@@ -54,11 +54,11 @@ struct MaxFlow {
   }
 
   int blockingFlow(int u, int sink, int f) {
-    if (u == sink or not f)
+    if (u == sink || !f)
       return f;
     int fu = f;
     for (auto e = g[u].begin(); e != g[u].end(); ++e) {
-      if (not e->cap or level[e->v] != level[u] + 1)
+      if (!e->cap || level[e->v] != level[u] + 1)
         continue;
       int mincap = blockingFlow(e->v, sink, min(fu, e->cap));
       if (mincap) {
@@ -128,9 +128,9 @@ vector<pair<double, vector<int>>> SeparateSEC(const Instance &instance,
     for (int i = 0; i < instance.edges_.size(); i++) {
       const int a = instance.edges_[i].first;
       const int b = instance.edges_[i].second;
-      if (not binary_search(cut.begin(), cut.end(), a))
+      if (!binary_search(cut.begin(), cut.end(), a))
         continue;
-      if (not binary_search(cut.begin(), cut.end(), b))
+      if (!binary_search(cut.begin(), cut.end(), b))
         continue;
       violation += x[i];
     }

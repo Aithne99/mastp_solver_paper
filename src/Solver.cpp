@@ -1,3 +1,5 @@
+#ifdef CPLEX
+
 #include "Solver.h"
 #include "DisjointSetForest.h"
 
@@ -990,3 +992,5 @@ void Solver::Run() {
 
   cout << "}" << endl;
 }
+
+#endif
