@@ -276,9 +276,8 @@ void SolverGurobi::AddImplicationConstraint(const int a, const int b) {
     const int a_var = instance_.edges_.size() + a;
     const int b_var = instance_.edges_.size() + b;
     GRBVar v[2];
-    v[0] = model_->getVar(a_var);
-    v[1] = model_->getVar(b_var);
-    int ind[2] = { b_var, a_var };
+    v[0] = model_->getVar(b_var);
+    v[1] = model_->getVar(a_var);
     double val[2] = { 1.0, -1.0 };
     int beg[1] = { 0 };
     char sense[1] = { 'G' };
