@@ -80,192 +80,179 @@ void SolverGurobi::BuildModel() {
     AddCardinalityConstraint();
 }
 
-class CutCallback;
-void AddSEC(SolverGurobi& solver, const vector<int>& S, CutCallback& cb, int where);
-void AddBendersCut(SolverGurobi& solver, const vector<double>& opt_cut, CutCallback& cb, int where);
-int SeparateTriangleInequalities(SolverGurobi& solver, const vector<double>& x, CutCallback& cb, int where);
-
-class CutCallback : public GRBCallback
+void CutCallback::callback()
 {
-public:
-    SolverGurobi& solver;
-    GRBVar* vars;
-    int numVars;
-    CutCallback(SolverGurobi& _solver, GRBVar* v, int n) : solver(_solver), vars(v), numVars(n) {}
-    void cut(const GRBLinExpr& expr, char sense, double rhs) { addCut(expr, sense, rhs); }
-    void lazy(const GRBLinExpr& expr, char sense, double rhs) { addLazy(expr, sense, rhs); }
-    void callback()
+    if (where == GRB_CB_MIPNODE || where == GRB_CB_MIPSOL)
     {
-        if (where == GRB_CB_MIPNODE || where == GRB_CB_MIPSOL)
-        {
-            int node_depth;
-            double nd = where == GRB_CB_MIPNODE ? getDoubleInfo(GRB_CB_MIPNODE_NODCNT) : getDoubleInfo(GRB_CB_MIPSOL_NODCNT);
-            node_depth = (int)nd;
-            const Instance& instance = solver.instance_;
-            auto& stats = solver.stats_;
+        int node_depth;
+        double nd = where == GRB_CB_MIPNODE ? getDoubleInfo(GRB_CB_MIPNODE_NODCNT) : getDoubleInfo(GRB_CB_MIPSOL_NODCNT);
+        node_depth = (int)nd;
+        const Instance& instance = solver.instance_;
+        auto& stats = solver.stats_;
+        auto vars = solver.model_->getVars();
 #ifdef BENDERS
-            const int num_vars = instance.edges_.size() + 1;
+        const int num_vars = instance.edges_.size() + 1;
 #else
-            const int num_vars = instance.edges_.size() + instance.num_faces_;
+        const int num_vars = instance.edges_.size() + instance.num_faces_;
 #endif
-            double* xptr = getSolution(vars, numVars);
-            vector<double> x(xptr, xptr + numVars);
-            //if (wherefrom == CPX_CALLBACK_MIP_CUT_FEAS) {
-            //    int sol_src = -1;
-            //    if (CPXgetcallbacknodeinfo(env, wherefrom, 0,
-            //        CPX_CALLBACK_INFO_LAZY_SOURCE, &sol_src)) {
+        double* xptr = getSolution(vars, num_vars);
+        vector<double> x(xptr, xptr + num_vars);
+        //if (wherefrom == CPX_CALLBACK_MIP_CUT_FEAS) {
+        //    int sol_src = -1;
+        //    if (CPXgetcallbacknodeinfo(env, wherefrom, 0,
+        //        CPX_CALLBACK_INFO_LAZY_SOURCE, &sol_src)) {
 
-            //        cerr << "GUROBI - CutCallback - Failed to get candidate solution source."
-            //            << endl;
-            //    }
-            //}
+        //        cerr << "GUROBI - CutCallback - Failed to get candidate solution source."
+        //            << endl;
+        //    }
+        //}
 
-            int num_cuts_added = 0;
+        int num_cuts_added = 0;
 
-            auto secs = SeparateSEC(instance, x);
-            stats.num_sec_separations_++;
+        auto secs = SeparateSEC(instance, x);
+        stats.num_sec_separations_++;
+        if (node_depth == 0) {
+            stats.num_sec_separations_root_++;
+        }
+
+        sort(secs.begin(), secs.end());
+        reverse(secs.begin(), secs.end());
+        if (!secs.empty())
+            secs.resize(1);
+        for (const auto& sec : secs) {
+            AddSEC(sec.second);
+            num_cuts_added++;
+
+            stats.num_sec_++;
             if (node_depth == 0) {
-                stats.num_sec_separations_root_++;
+                stats.num_sec_root_++;
             }
-
-            sort(secs.begin(), secs.end());
-            reverse(secs.begin(), secs.end());
-            if (!secs.empty())
-                secs.resize(1);
-            for (const auto& sec : secs) {
-                AddSEC(solver, sec.second, *this, where);
-                num_cuts_added++;
-
-                stats.num_sec_++;
-                if (node_depth == 0) {
-                    stats.num_sec_root_++;
-                }
-            }
+        }
 
 #ifdef SEPARATE_TRIANGLE_CUTS
-            if (num_cuts_added == 0) {
-                int num_triineq =
-                    SeparateTriangleInequalities(solver, x, *this, where);
-                num_cuts_added++;
+        if (num_cuts_added == 0) {
+            int num_triineq =
+                SeparateTriangleInequalities(x);
+            num_cuts_added++;
 
-                stats.num_triineq_separations_++;
-                stats.num_triineq_ += num_triineq;
-                if (node_depth == 0) {
-                    stats.num_triineq_separations_root_++;
-                    stats.num_triineq_root_ += num_triineq;
-                }
-            }
-#endif
-
-#ifdef BENDERS
-
-            bool integral = true;
-            for (int e = 0; e < instance.edges_.size(); e++) {
-                if (min(fabs(x[e] - 0), fabs(1 - x[e])) > 1.e-4) {
-                    integral = false;
-                    break;
-                }
-            }
-            if (num_cuts_added == 0 || integral) {
-                double early_stop_th = integral || solver.benders_early_stop_ub ==
-                    numeric_limits<double>::infinity()
-                    ? 0.
-                    : solver.benders_early_stop_ub;
-
-                auto benders_cut = SeparateBendersCut(instance, x, early_stop_th);
-                solver.stats_.num_benders_separations_++;
-                if (node_depth == 0) {
-                    solver.stats_.num_benders_separations_root_++;
-                }
-
-                if (!benders_cut.empty()) {
-                    AddBendersCut(solver, benders_cut, *this, where);
-                    num_cuts_added++;
-                    double bvio = -x.back();
-                    for (int i = 0; i < instance.edges_.size(); i++) {
-                        bvio += x[i] * benders_cut[i];
-                    }
-
-                    solver.stats_.num_benders_cuts_++;
-                    if (node_depth == 0) {
-                        solver.stats_.num_benders_cuts_root_++;
-                    }
-                }
-            }
-#endif
-
-            if (num_cuts_added) {
-                //proceed();
-            }
-
-            if (node_depth == 0 && false) {
-                //double dual_bound = 0.;
-                //if (CPXgetcallbacknodeinfo(env, wherefrom, 0,
-                //    CPX_CALLBACK_INFO_NODE_OBJVAL, &dual_bound)) {
-
-                //    cerr << "GUROBI - CutCallback - Failed to get dual bound" << endl;
-                //}
-
-                //solver.stats_.objective_lower_bound_root_ = dual_bound;
+            stats.num_triineq_separations_++;
+            stats.num_triineq_ += num_triineq;
+            if (node_depth == 0) {
+                stats.num_triineq_separations_root_++;
+                stats.num_triineq_root_ += num_triineq;
             }
         }
-        if (where == GRB_CB_MIPNODE)
-        {
-            const Instance& instance = solver.instance_;
-
-            solver.stats_.num_runs_heuristic_++;
-
-            double* x = getSolution(vars, numVars);
-            vector<int> tree = solver.ClosestTree(x);
-            solver.ImproveTree(tree);
-
-
-            if (tree.size() != instance.n_ - 1) {
-                return;
-            }
-
-#ifdef BENDERS
-            const int num_vars = instance.edges_.size() + 1;
-#else
-            const int num_vars = instance.edges_.size() + instance.num_faces_;
 #endif
-            fill(x, x + num_vars, 0);
-            for (int i : tree) {
-                x[i] = 1.0;
+
+#ifdef BENDERS
+
+        bool integral = true;
+        for (int e = 0; e < instance.edges_.size(); e++) {
+            if (min(fabs(x[e] - 0), fabs(1 - x[e])) > 1.e-4) {
+                integral = false;
+                break;
+            }
+        }
+        if (num_cuts_added == 0 || integral) {
+            double early_stop_th = integral || solver.benders_early_stop_ub ==
+                numeric_limits<double>::infinity()
+                ? 0.
+                : solver.benders_early_stop_ub;
+
+            auto benders_cut = SeparateBendersCut(instance, x, early_stop_th);
+            solver.stats_.num_benders_separations_++;
+            if (node_depth == 0) {
+                solver.stats_.num_benders_separations_root_++;
             }
 
-            vector<bool> visited(instance.num_faces_);
-#ifdef BENDERS
-            double objval_p = 0;
-            objval_p = solver.DfsComputeObj(visited, 0, 0, x);
-            x[instance.edges_.size()] = objval_p;
-#else
-            solver.DfsComputeY(visited, 0, 0, x);
+            if (!benders_cut.empty()) {
+                AddBendersCut(benders_cut);
+                num_cuts_added++;
+                double bvio = -x.back();
+                for (int i = 0; i < instance.edges_.size(); i++) {
+                    bvio += x[i] * benders_cut[i];
+                }
 
-            double objval_p = 0;
-            for (int i = 0; i < instance.num_faces_; i++) {
-                if (x[i + instance.edges_.size()] == 1.) {
-                    objval_p += instance.face_area_[i];
+                solver.stats_.num_benders_cuts_++;
+                if (node_depth == 0) {
+                    solver.stats_.num_benders_cuts_root_++;
                 }
             }
+        }
 #endif
 
-            //*useraction_p = CPX_CALLBACK_SET;
+        if (num_cuts_added) {
+            //proceed();
+        }
 
-            setSolution(vars, x, num_vars);
-            useSolution();
-            double node_depth = where == GRB_CB_MIPNODE ? getDoubleInfo(GRB_CB_MIPNODE_NODCNT) : getDoubleInfo(GRB_CB_MIPSOL_NODCNT);
+        if (node_depth == 0 && false) {
+            //double dual_bound = 0.;
+            //if (CPXgetcallbacknodeinfo(env, wherefrom, 0,
+            //    CPX_CALLBACK_INFO_NODE_OBJVAL, &dual_bound)) {
 
-            if (node_depth == 0) {
-                solver.stats_.objective_upper_bound_root_ =
-                    max(solver.stats_.objective_upper_bound_root_, objval_p);
-            }
+            //    cerr << "GUROBI - CutCallback - Failed to get dual bound" << endl;
+            //}
 
-            solver.benders_early_stop_ub = min(solver.benders_early_stop_ub, objval_p);
+            //solver.stats_.objective_lower_bound_root_ = dual_bound;
         }
     }
-};
+    if (where == GRB_CB_MIPNODE)
+    {
+        const Instance& instance = solver.instance_;
 
+        solver.stats_.num_runs_heuristic_++;
+
+        auto vars = solver.model_->getVars();
+        int numVars = solver.model_->get(GRB_IntAttr_NumVars);
+        double* x = getSolution(vars, numVars);
+        vector<int> tree = solver.ClosestTree(x);
+        solver.ImproveTree(tree);
+
+
+        if (tree.size() != instance.n_ - 1) {
+            return;
+        }
+
+#ifdef BENDERS
+        const int num_vars = instance.edges_.size() + 1;
+#else
+        const int num_vars = instance.edges_.size() + instance.num_faces_;
+#endif
+        fill(x, x + num_vars, 0);
+        for (int i : tree) {
+            x[i] = 1.0;
+        }
+
+        vector<bool> visited(instance.num_faces_);
+#ifdef BENDERS
+        double objval_p = 0;
+        objval_p = solver.DfsComputeObj(visited, 0, 0, x);
+        x[instance.edges_.size()] = objval_p;
+#else
+        solver.DfsComputeY(visited, 0, 0, x);
+
+        double objval_p = 0;
+        for (int i = 0; i < instance.num_faces_; i++) {
+            if (x[i + instance.edges_.size()] == 1.) {
+                objval_p += instance.face_area_[i];
+            }
+        }
+#endif
+
+        //*useraction_p = CPX_CALLBACK_SET;
+
+        setSolution(vars, x, num_vars);
+        useSolution();
+        double node_depth = where == GRB_CB_MIPNODE ? getDoubleInfo(GRB_CB_MIPNODE_NODCNT) : getDoubleInfo(GRB_CB_MIPSOL_NODCNT);
+
+        if (node_depth == 0) {
+            solver.stats_.objective_upper_bound_root_ =
+                max(solver.stats_.objective_upper_bound_root_, objval_p);
+        }
+
+        solver.benders_early_stop_ub = min(solver.benders_early_stop_ub, objval_p);
+    }
+}
 
 int SolverGurobi::ArcIndex(const int root, const int edge,
     const bool reversed) const {
@@ -423,8 +410,7 @@ void SolverGurobi::AddReducedCoveringConstraintsDFS(vector<bool>& visited,
     }
 }
 
-void AddBendersCut(SolverGurobi& solver,
-    const vector<double>& opt_cut, CutCallback& cb, int where) {
+void CutCallback::AddBendersCut(const vector<double>& opt_cut) {
     const auto& instance = solver.instance_;
 
     vector<int> xs = { 3, 5, 8, 18, 23, 28, 31, 47, 50, 55, 56 };
@@ -462,21 +448,14 @@ void AddBendersCut(SolverGurobi& solver,
     double rhs = 0.;
 
     if (where == GRB_CB_MIPNODE)
-        cb.cut(lhs, sense, rhs);
+        addCut(lhs, sense, rhs);
     else if (where == GRB_CB_MIPSOL)
     {
-        try {
-            cb.lazy(lhs, sense, rhs);
-        }
-        catch (GRBException e)
-        {
-            std::cout << e.getMessage();
-        }
+        addLazy(lhs, sense, rhs);
     }
 }
 
-void AddCutset(SolverGurobi& solver, const int root,
-    const vector<int>& arcs, CutCallback& cb, int where) {
+void CutCallback::AddCutset(const int root, const vector<int>& arcs) {
 
     const Instance& instance = solver.instance_;
 
@@ -504,20 +483,14 @@ void AddCutset(SolverGurobi& solver, const int root,
     double rhs = 1.;
 
     if (where == GRB_CB_MIPNODE)
-        cb.cut(lhs, sense, rhs);
+        addCut(lhs, sense, rhs);
     else if (where == GRB_CB_MIPSOL)
     {
-        try {
-            cb.lazy(lhs, sense, rhs);
-        }
-        catch (GRBException e)
-        {
-            std::cout << e.getMessage();
-        }
+        addLazy(lhs, sense, rhs);
     }
 }
 
-void AddSEC(SolverGurobi& solver, const vector<int>& S, CutCallback& cb, int where) {
+void CutCallback::AddSEC(const vector<int>& S) {
     if (S.empty())
         return;
 
@@ -560,16 +533,10 @@ void AddSEC(SolverGurobi& solver, const vector<int>& S, CutCallback& cb, int whe
     char sense = 'L';
 
     if (where == GRB_CB_MIPNODE)
-        cb.cut(lhs, sense, rhs);
+        addCut(lhs, sense, rhs);
     else if (where == GRB_CB_MIPSOL)
     {
-        try {
-            cb.lazy(lhs, sense, rhs);
-        }
-        catch (GRBException e)
-        {
-            std::cout << e.getMessage();
-        }
+        addLazy(lhs, sense, rhs);
     }
 }
 
@@ -670,8 +637,7 @@ int FindBestFaceInTwoCircles(const Instance& instance, const vector<double>& x,
     return best_face;
 }
 
-int SeparateTriangleInequalities(SolverGurobi& solver,
-    const vector<double>& x, CutCallback& cb, int where) {
+int CutCallback::SeparateTriangleInequalities(const vector<double>& x) {
     // The idea here is to fix one side of the triangle and compute
     // the best two faces for each vertex completing the triangle.
 
@@ -749,17 +715,12 @@ int SeparateTriangleInequalities(SolverGurobi& solver,
                 char sense = 'G';
                 double rhs = 0.;
 
+
                 if (where == GRB_CB_MIPNODE)
-                    cb.cut(lhs, sense, rhs);
+                    addCut(lhs, sense, rhs);
                 else if (where == GRB_CB_MIPSOL)
                 {
-                    try {
-                        cb.lazy(lhs, sense, rhs);
-                    }
-                    catch (GRBException e)
-                    {
-                        std::cout << e.getMessage();
-                    }
+                    addLazy(lhs, sense, rhs);
                 }
             }
         }
@@ -875,7 +836,7 @@ void SolverGurobi::Run() {
 
     //GRBsetintparam(env_, CPXPARAM_ScreenOutput, CPX_ON);
 
-    CutCallback* cb = new CutCallback(*this, model_->getVars(), model_->get(GRB_IntAttr_NumVars));
+    CutCallback* cb = new CutCallback(*this);
 
     model_->setCallback(cb);
 

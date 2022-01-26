@@ -86,4 +86,19 @@ struct SolverGurobi {
 
   void SetSolverParameters();
 };
+
+class CutCallback : public GRBCallback
+{
+public:
+    CutCallback(SolverGurobi& _solver) : solver(_solver) {}
+    void callback();
+    void AddSEC(const vector<int>& S);
+    void AddBendersCut(const vector<double>& opt_cut);
+    int SeparateTriangleInequalities(const vector<double>& x);
+    void AddCutset(const int root, const vector<int>& arcs);
+private:
+    SolverGurobi& solver;
+    //GRBVar* vars;
+    //int numVars;
+};
 #endif
