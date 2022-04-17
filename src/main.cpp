@@ -44,6 +44,7 @@ int main(int argc, char *argv[]) {
   solver.stats_.num_faces_ = instance.num_faces_;
   solver.BuildModel();
   solver.Run();
+  
   getchar();
 #endif
 }

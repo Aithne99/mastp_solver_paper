@@ -222,8 +222,7 @@ void CutCallback::callback()
         for (int i : tree) {
             x[i] = 1.0;
         }
-
-        vector<bool> visited(instance.num_faces_);
+       vector<bool> visited(instance.num_faces_);
 #ifdef BENDERS
         double objval_p = 0;
         objval_p = solver.DfsComputeObj(visited, 0, 0, x);
@@ -543,49 +542,38 @@ void CutCallback::AddSEC(const vector<int>& S) {
 double SolverGurobi::DfsComputeObj(vector<bool>& visited, int face, int count,
     double* x) {
     double obj = 0.;
-    visited[face] = true;
 
-    if (count) {
-        obj += instance_.face_area_[face];
-    }
-
-    for (const auto& e : instance_.face_graph_[face]) {
-        if (visited[e.to_])
-            continue;
-
-        int delta = 0;
-        for (int i : instance_.circle_to_edges_[e.circle_]) {
-            if (x[i] > 0.) {
-                delta += e.grows_ ? 1 : -1;
-                break;
+    for (auto e : instance_.edge_to_circle_)
+    {
+        if (x[e])
+        {
+            for (auto f : instance_.hitting_set_[e])
+            {
+                if (visited[f])
+                    continue;
+                visited[f] = true;
+                obj += instance_.face_area_[f];
             }
         }
-        obj += DfsComputeObj(visited, e.to_, count + delta, x);
     }
-
     return obj;
 }
 
 void SolverGurobi::DfsComputeY(vector<bool>& visited, int face, int count,
     double* x) {
-    visited[face] = true;
 
-    if (count) {
-        x[instance_.edges_.size() + face] = 1.0;
-    }
-
-    for (const auto& e : instance_.face_graph_[face]) {
-        if (visited[e.to_])
-            continue;
-
-        int delta = 0;
-        for (int i : instance_.circle_to_edges_[e.circle_]) {
-            if (x[i] > 0.) {
-                delta += e.grows_ ? 1 : -1;
-                break;
+    for (auto e : instance_.edge_to_circle_)
+    {
+        if (x[e])
+        {
+            for (auto f : instance_.hitting_set_[e])
+            {
+                if (visited[f])
+                    continue;
+                visited[f] = true;
+                x[instance_.edges_.size() + f] = 1.0;
             }
         }
-        DfsComputeY(visited, e.to_, count + delta, x);
     }
 }
 
@@ -918,4 +906,8 @@ void SolverGurobi::Run() {
     cout << "\"num_runs_heuristic\": " << stats_.num_runs_heuristic_ << endl;
 
     cout << "}" << endl;
+
+    auto vars = model_->getVars();
+    for (int i = 0; i < instance_.edges_.size(); ++i)
+        std::cout << vars[i].get(GRB_DoubleAttr_X) << " ";
 }
