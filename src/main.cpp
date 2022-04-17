@@ -10,11 +10,13 @@
 #include <map>
 #include <set>
 #include <vector>
+#include "Arrangement.h"
 
 using namespace std;
 
 int main(int argc, char *argv[]) {
   Instance instance;
+
 #ifdef PREPROCESS_ARRANGEMENT
   cin >> instance.n_;
   for (int i = 0; i < instance.n_; i++) {
@@ -38,7 +40,7 @@ int main(int argc, char *argv[]) {
 
   instance.load(argc, argv);
   SolverGurobi solver(instance);
-  solver.stats_.build_arrangement_time_ = timer.Read() / 1000.;
+//  solver.stats_.build_arrangement_time_ = timer.Read() / 1000.;
   solver.stats_.num_faces_ = instance.num_faces_;
   solver.BuildModel();
   solver.Run();

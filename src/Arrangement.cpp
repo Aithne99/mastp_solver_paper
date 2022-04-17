@@ -3,6 +3,8 @@
 #include <iostream>
 #include <map>
 
+#ifdef PREPROCESS_ARRANGEMENT
+
 #include <CGAL/Arr_circle_segment_traits_2.h>
 #include <CGAL/Arr_consolidated_curve_data_traits_2.h>
 #include <CGAL/Arr_extended_dcel.h>
@@ -146,9 +148,10 @@ void AddFaceEdges(Instance &instance, int from,
     curr++;
   } while (curr != ccb);
 }
+#endif
 
 void BuildArrangementData(Instance &instance) {
-
+#ifdef PREPROCESS_ARRANGEMENT
   vector<Curve> curves;
   vector<Circle> circles;
   for (int i = 0; i < instance.edges_.size(); i++) {
@@ -204,4 +207,5 @@ void BuildArrangementData(Instance &instance) {
   }
 
   instance.num_faces_ = arrangement.number_of_faces();
+#endif
 }
