@@ -4,6 +4,7 @@
 #include <limits>
 #include <queue>
 #include <vector>
+#include "Timer.h"
 
 using namespace std;
 
@@ -84,6 +85,8 @@ int RoundCapacity(const double cap) { return cap * SCALE; }
 
 vector<pair<double, vector<int>>> SeparateSEC(const Instance &instance,
                                               const vector<double> &x) {
+    //Timer timer;
+    //timer.Start();
   vector<pair<double, vector<int>>> cuts;
 
   vector<double> b(instance.n_);
@@ -123,6 +126,10 @@ vector<pair<double, vector<int>>> SeparateSEC(const Instance &instance,
         cut.push_back(i);
       }
     }
+#ifdef MAT
+    if (cut.size() == instance.n_)
+        continue;
+#endif // MAT
 
     double violation = 1 - int(cut.size());
     for (int i = 0; i < instance.edges_.size(); i++) {
@@ -139,6 +146,8 @@ vector<pair<double, vector<int>>> SeparateSEC(const Instance &instance,
       cuts.push_back({violation, cut});
     }
   }
+  //timer.Pause();
+  //std::cout << "\n Time spent separating SEC: " << timer.Read();
 
   return cuts;
 }

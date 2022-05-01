@@ -3,6 +3,7 @@
 #include <cassert>
 #include <iostream>
 #include <set>
+#include "Timer.h"
 
 using namespace std;
 
@@ -10,53 +11,13 @@ void DFS(const Instance &instance, const vector<double> &x,
             set<pair<double, int>> &active, vector<bool> &visited, int face,
             vector<double> &w) {
 
-    // this is how you do it with recursion, readably
-    //visited[face] = true;
-
-    //if (!active.empty())
-    //{
-    //    int edge = active.begin()->second;
-    //    w[edge] += instance.face_area_[face];
-    //} else
-    //{
-    //    assert(face == 0);
-    //}
-
-    //for (const auto &adj : instance.face_graph_[face]) {
-    //    if (visited[adj.to_])
-    //        continue;
-
-    //    // this is always a 1-1 correspondence, I have no idea why this was treated as a for loop
-    //    int edge = adj.circle_;
-    //    pair<double, int> item(-x[edge], edge);
-    //    if (adj.grows_)
-    //    {
-    //        active.insert(item);
-    //    }
-    //    else
-    //    {
-    //        active.erase(item);
-    //    }    
-
-    //    DFS(instance, x, active, visited, adj.to_, w);
-
-    //    if (adj.grows_)
-    //    {
-    //        active.erase(item);
-    //    }
-    //    else
-    //    {
-    //        active.insert(item);
-    //    }
-    //}
-
-    // and this is how you do it without needing 800000 stack frames
+    // and this is how you do it without needing 8000000 stack frames
     // edges which are present in the current solution are always weighed by all the faces which are part of their hitting set AND haven't been counted yet
-    for (auto e : instance.edge_to_circle_)
+    for (int e = 0; e < instance.edges_.size(); ++e)
     {
         if (x[e] == 1)
         {
-            for (auto f : instance.hitting_set_[e])
+            for (auto f : instance.hitting_set_[instance.edge_to_circle_[e]])
             {
                 if (visited[f])
                     continue;
@@ -66,16 +27,16 @@ void DFS(const Instance &instance, const vector<double> &x,
         }
     }
     // edges which are not present in the current solution are weighed by the new faces they would be bringing in
-    for (auto e : instance.edge_to_circle_)
+    for (int e = 0; e < instance.edges_.size(); ++e)
     {
         if (x[e] != 1)
         {
-            for (auto f : instance.hitting_set_[e])
+            for (auto f : instance.hitting_set_[instance.edge_to_circle_[e]])
             {
                 if (visited[f])
                     continue;
                 w[e] += instance.face_area_[f];
-                //visited[f] = true;
+                //visited[f] = true; // faces which would be brought into the solution by multiple currently inactive edges should be counted towards the weight of all edges they belong to
             }
         }
     }
@@ -88,7 +49,12 @@ vector<double> SeparateBendersCut(const Instance &instance,
     vector<double> w(instance.edges_.size());
     vector<bool> visited(instance.num_faces_);
 
+    //Timer timer;
+    //timer.Start();
+
     DFS(instance, x, active, visited, 0, w);
+    //timer.Pause();
+    //std::cout << "\n Time spent in Benders DFS: " << timer.Read();
 
     double sum = 0.0;
 

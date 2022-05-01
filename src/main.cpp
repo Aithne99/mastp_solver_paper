@@ -35,16 +35,18 @@ int main(int argc, char *argv[]) {
 
   instance.PrintArrangementData(argc, argv);
 #else
+  instance.load(argc, argv);
+#endif
   Timer timer;
   timer.Start();
 
-  instance.load(argc, argv);
   SolverGurobi solver(instance);
 //  solver.stats_.build_arrangement_time_ = timer.Read() / 1000.;
   solver.stats_.num_faces_ = instance.num_faces_;
   solver.BuildModel();
   solver.Run();
-  
+  timer.Pause();
+  std::cout << "Total time spent solving: " << timer.Read();
+
   getchar();
-#endif
 }

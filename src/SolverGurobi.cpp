@@ -15,6 +15,7 @@ void SolverGurobi::BuildModel() {
     model_ = new GRBModel(*env_);
 
     model_->getEnv().set(GRB_IntParam_DualReductions, 0);
+    model_->getEnv().set(GRB_IntParam_PreCrush, 1);
   // Variables: [edges, faces]
 
 #ifdef BENDERS
@@ -168,6 +169,10 @@ void CutCallback::callback()
             if (!benders_cut.empty()) {
                 AddBendersCut(benders_cut);
                 num_cuts_added++;
+                //std::cout << "\r\n Benders cut: ";
+                //for (auto coef : benders_cut)
+                //    std::cout << coef << " ";
+                //std::cout << "\r\n";
                 double bvio = -x.back();
                 for (int i = 0; i < instance.edges_.size(); i++) {
                     bvio += x[i] * benders_cut[i];
@@ -182,7 +187,7 @@ void CutCallback::callback()
 #endif
 
         if (num_cuts_added) {
-            //proceed();
+            return;
         }
 
         if (node_depth == 0 && false) {
@@ -198,58 +203,58 @@ void CutCallback::callback()
     }
     if (where == GRB_CB_MIPNODE)
     {
-        const Instance& instance = solver.instance_;
+            const Instance& instance = solver.instance_;
 
-        solver.stats_.num_runs_heuristic_++;
+            solver.stats_.num_runs_heuristic_++;
 
-        auto vars = solver.model_->getVars();
-        int numVars = solver.model_->get(GRB_IntAttr_NumVars);
-        double* x = getSolution(vars, numVars);
-        vector<int> tree = solver.ClosestTree(x);
-        solver.ImproveTree(tree);
+            auto vars = solver.model_->getVars();
+            int numVars = solver.model_->get(GRB_IntAttr_NumVars);
+            double* x = getSolution(vars, numVars);
+            vector<int> tree = solver.ClosestTree(x);
+            solver.ImproveTree(tree);
 
-
-        if (tree.size() != instance.n_ - 1) {
-            return;
-        }
-
-#ifdef BENDERS
-        const int num_vars = instance.edges_.size() + 1;
-#else
-        const int num_vars = instance.edges_.size() + instance.num_faces_;
-#endif
-        fill(x, x + num_vars, 0);
-        for (int i : tree) {
-            x[i] = 1.0;
-        }
-       vector<bool> visited(instance.num_faces_);
-#ifdef BENDERS
-        double objval_p = 0;
-        objval_p = solver.DfsComputeObj(visited, 0, 0, x);
-        x[instance.edges_.size()] = objval_p;
-#else
-        solver.DfsComputeY(visited, 0, 0, x);
-
-        double objval_p = 0;
-        for (int i = 0; i < instance.num_faces_; i++) {
-            if (x[i + instance.edges_.size()] == 1.) {
-                objval_p += instance.face_area_[i];
+            if (tree.size() != instance.n_ - 1) {
+                return;
             }
-        }
+
+#ifdef BENDERS
+            const int num_vars = instance.edges_.size() + 1;
+#else
+            const int num_vars = instance.edges_.size() + instance.num_faces_;
+#endif
+            fill(x, x + num_vars, 0);
+            for (int i : tree) {
+                x[i] = 1.0;
+            }
+            vector<bool> visited(instance.num_faces_);
+#ifdef BENDERS
+            double objval_p = 0;
+            objval_p = solver.DfsComputeObj(visited, 0, 0, x);
+            x[instance.edges_.size()] = objval_p;
+#else
+            solver.DfsComputeY(visited, 0, 0, x);
+
+            double objval_p = 0;
+            for (int i = 0; i < instance.num_faces_; i++) {
+                if (x[i + instance.edges_.size()] == 1.) {
+                    objval_p += instance.face_area_[i];
+                }
+            }
 #endif
 
-        //*useraction_p = CPX_CALLBACK_SET;
+            //*useraction_p = CPX_CALLBACK_SET;
 
-        setSolution(vars, x, num_vars);
-        useSolution();
-        double node_depth = where == GRB_CB_MIPNODE ? getDoubleInfo(GRB_CB_MIPNODE_NODCNT) : getDoubleInfo(GRB_CB_MIPSOL_NODCNT);
+            setSolution(vars, x, num_vars);
+            useSolution();
+            double node_depth = getDoubleInfo(GRB_CB_MIPNODE_NODCNT);
 
-        if (node_depth == 0) {
-            solver.stats_.objective_upper_bound_root_ =
-                max(solver.stats_.objective_upper_bound_root_, objval_p);
-        }
+            if (node_depth == 0) {
+                solver.stats_.objective_upper_bound_root_ =
+                    max(solver.stats_.objective_upper_bound_root_, objval_p);
+            }
 
-        solver.benders_early_stop_ub = min(solver.benders_early_stop_ub, objval_p);
+            solver.benders_early_stop_ub = min(solver.benders_early_stop_ub, objval_p);
+        //}
     }
 }
 
@@ -288,23 +293,23 @@ void SolverGurobi::AddCoveringConstraint(const int face, const int edge) {
 }
 
 void SolverGurobi::AddArcEdgeCouplingConstraints() {
-    const int num_edges = instance_.edges_.size();
-    for (int r = 0; r < instance_.n_; r++) {
-        for (int e = 0; e < num_edges; e++) {
-            int ind[3] = { e, ArcIndex(r, e, false), ArcIndex(r, e, true) };
-            double val[3] = { -1., 1., 1. };
-            int beg[1] = { 0 };
-            char sense[1] = { 'E' };
-            double rhs[1] = { 0. };
-            GRBVar v[3];
-            v[0] = model_->getVar(ind[0]);
-            v[1] = model_->getVar(ind[1]);
-            v[2] = model_->getVar(ind[2]);
-            GRBLinExpr* expr = new GRBLinExpr();
-            expr->addTerms(val, v, 3);
-            model_->addConstrs(expr, sense, rhs, nullptr, 1);
-        }
-    }
+    //const int num_edges = instance_.edges_.size();
+    //for (int r = 0; r < instance_.n_; r++) {
+    //    for (int e = 0; e < num_edges; e++) {
+    //        int ind[3] = { e, ArcIndex(r, e, false), ArcIndex(r, e, true) };
+    //        double val[3] = { -1., 1., 1. };
+    //        int beg[1] = { 0 };
+    //        char sense[1] = { 'E' };
+    //        double rhs[1] = { 0. };
+    //        GRBVar v[3];
+    //        v[0] = model_->getVar(ind[0]);
+    //        v[1] = model_->getVar(ind[1]);
+    //        v[2] = model_->getVar(ind[2]);
+    //        GRBLinExpr* expr = new GRBLinExpr();
+    //        expr->addTerms(val, v, 3);
+    //        model_->addConstrs(expr, sense, rhs, nullptr, 1);
+    //    }
+    //}
 }
 
 void SolverGurobi::AddCardinalityConstraint() {
@@ -317,43 +322,42 @@ void SolverGurobi::AddCardinalityConstraint() {
 
     int beg[1] = { 0 };
     char sense[1] = { 'E' };
+#ifdef MAT
+    double rhs[1] = { double(instance_.n_) };
+#else
     double rhs[1] = { double(instance_.n_ - 1) };
-
+#endif
     auto vars = model_->getVars();
     GRBLinExpr* expr = new GRBLinExpr();
     expr->addTerms(card_val.data(), vars, card_val.size());
     model_->addConstrs(expr, sense, rhs, nullptr, 1);
+#ifdef MAT  
+    double one[1] = { 1 };
+    double two[1] = { 2 };
+
+    for (int i = 0; i < instance_.n_; ++i)
+    {
+        GRBLinExpr* expr2 = new GRBLinExpr();
+        for (int j = 0; j < instance_.edges_.size(); ++j)
+        {
+            if (instance_.edges_[j].first == i || instance_.edges_[j].second == i)
+            {
+                expr2->addTerms(one, &vars[j], 1);
+            }
+        }
+        model_->addConstrs(expr2, sense, two, nullptr, 1);
+    }
+#endif
 }
 
 void SolverGurobi::AddCoveringConstraintsDFS(vector<bool>& visited, const int face,
     set<int>& circles) {
-    visited[face] = true;
 
-    for (const int circle : circles) {
-        for (const int edge : instance_.circle_to_edges_[circle]) {
-            AddCoveringConstraint(face, edge);
-        }
-    }
-
-    for (const auto& e : instance_.face_graph_[face]) {
-        if (visited[e.to_])
-            continue;
-
-        if (e.grows_) {
-            circles.insert(e.circle_);
-        }
-        else {
-            circles.erase(e.circle_);
-        }
-
-        AddCoveringConstraintsDFS(visited, e.to_, circles);
-
-        if (e.grows_) {
-            circles.erase(e.circle_);
-        }
-        else {
-            circles.insert(e.circle_);
-        }
+    for (int i = 0; i < instance_.edges_.size(); ++i)
+    {
+        int circle = instance_.edge_to_circle_[i];
+        for (auto f : instance_.hitting_set_[circle])
+            AddCoveringConstraint(f, i);
     }
 }
 
@@ -568,9 +572,9 @@ void SolverGurobi::DfsComputeY(vector<bool>& visited, int face, int count,
         {
             for (auto f : instance_.hitting_set_[e])
             {
-                if (visited[f])
-                    continue;
-                visited[f] = true;
+                //if (visited[f])
+                //    continue;
+                //visited[f] = true;
                 x[instance_.edges_.size() + f] = 1.0;
             }
         }
@@ -829,15 +833,15 @@ void SolverGurobi::Run() {
     model_->setCallback(cb);
 
     // Solve root
+    // Gurobi already provides root relaxation statistics
+    //model_->set(GRB_DoubleParam_NodeLimit, 0);
+    //    
+    //model_->optimize();
 
-    model_->set(GRB_DoubleParam_NodeLimit, 0);
-        
-    model_->optimize();
+    //stats_.runtime_root_ = model_->get(GRB_DoubleAttr_Runtime);
 
-    stats_.runtime_root_ = model_->get(GRB_DoubleAttr_Runtime);
-
-    stats_.objective_upper_bound_root_ = model_->get(GRB_DoubleAttr_ObjVal);
-    stats_.objective_lower_bound_root_ = model_->get(GRB_DoubleAttr_ObjBound);
+    //stats_.objective_upper_bound_root_ = model_->get(GRB_DoubleAttr_ObjVal);
+    //stats_.objective_lower_bound_root_ = model_->get(GRB_DoubleAttr_ObjBound);
 
     //double* root_x =model_->get(GRB_DoubleAttr_X, model_->getVars(), model_->get(GRB_IntAttr_NumVars));
     //if (CPXgetx(env_, model_, root_x.data(), 0, root_x.size() - 1)) {
@@ -845,14 +849,14 @@ void SolverGurobi::Run() {
     //    exit(1);
     //}
 
-    cout << endl
-        << endl
-        << "ROOT ENDED #########################################################"
-        << endl
-        << endl;
+    //cout << endl
+    //    << endl
+    //    << "ROOT ENDED #########################################################"
+    //    << endl
+    //    << endl;
 
-    model_->reset();
-    model_->set(GRB_DoubleParam_NodeLimit, 9223372036800000000ll);
+    //model_->reset();
+    //model_->set(GRB_DoubleParam_NodeLimit, 9223372036800000000ll);
 
     model_->optimize();
 
