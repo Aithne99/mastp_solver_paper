@@ -449,13 +449,7 @@ void CutCallback::AddBendersCut(const vector<double>& opt_cut) {
     lhs.addTerms(val.data(), _v.data(), val.size());
     char sense = 'L';
     double rhs = 0.;
-
-    if (where == GRB_CB_MIPNODE)
-        addCut(lhs, sense, rhs);
-    else if (where == GRB_CB_MIPSOL)
-    {
-        addLazy(lhs, sense, rhs);
-    }
+    addLazy(lhs, sense, rhs);
 }
 
 void CutCallback::AddCutset(const int root, const vector<int>& arcs) {
@@ -485,12 +479,7 @@ void CutCallback::AddCutset(const int root, const vector<int>& arcs) {
     char sense = 'G';
     double rhs = 1.;
 
-    if (where == GRB_CB_MIPNODE)
-        addCut(lhs, sense, rhs);
-    else if (where == GRB_CB_MIPSOL)
-    {
-        addLazy(lhs, sense, rhs);
-    }
+    addLazy(lhs, sense, rhs);
 }
 
 void CutCallback::AddSEC(const vector<int>& S) {
@@ -535,12 +524,7 @@ void CutCallback::AddSEC(const vector<int>& S) {
 
     char sense = 'L';
 
-    if (where == GRB_CB_MIPNODE)
-        addCut(lhs, sense, rhs);
-    else if (where == GRB_CB_MIPSOL)
-    {
-        addLazy(lhs, sense, rhs);
-    }
+    addLazy(lhs, sense, rhs);
 }
 
 double SolverGurobi::DfsComputeObj(vector<bool>& visited, int face, int count,
@@ -707,13 +691,7 @@ int CutCallback::SeparateTriangleInequalities(const vector<double>& x) {
                 char sense = 'G';
                 double rhs = 0.;
 
-
-                if (where == GRB_CB_MIPNODE)
-                    addCut(lhs, sense, rhs);
-                else if (where == GRB_CB_MIPSOL)
-                {
-                    addLazy(lhs, sense, rhs);
-                }
+                addLazy(lhs, sense, rhs);
             }
         }
     }
