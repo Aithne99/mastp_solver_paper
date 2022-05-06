@@ -48,5 +48,5 @@ int main(int argc, char *argv[]) {
   timer.Pause();
   std::cout << "Total time spent solving: " << timer.Read();
 
-  getchar();
+  _sleep(INT_MAX);
 }

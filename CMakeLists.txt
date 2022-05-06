@@ -6,8 +6,8 @@ find_package(GUROBI REQUIRED)
 include_directories(${GUROBI_INCLUDE_DIRS})
 
 
-#set(CMAKE_CXX_FLAGS "-zstack-size=8684354560 -frounding-math -DIL_STD -g3 -pedantic -Wall -Wextra -Wshadow -fsanitize=address -fno-sanitize-recover=all -D_GLIBCXX_DEBUG")
-set(CMAKE_CXX_FLAGS "-frounding-math -DIL_STD -D_GLIBCXX_DEBUG")
+#set(CMAKE_CXX_FLAGS "-zstack-size=8684354560 -frounding-math -DIL_STD -g3 -pedantic -Wall -Wextra -Wshadow -fsanitize=address -fno-sanitize-recover=all -D_GLIBCXX_DEBUG -O2")
+set(CMAKE_CXX_FLAGS "-EHsc -DIL_STD -D_GLIBCXX_DEBUG -O2")
 
 #find_package(CGAL  REQUIRED COMPONENTS Core)
 
@@ -32,6 +32,12 @@ target_compile_definitions(BC-TRI-PP PUBLIC SEPARATE_TRIANGLE_CUTS)
 
 add_executable(BC-BD src/main.cpp src/SEC.cpp src/SolverGurobi.cpp src/DisjointSetForest.cpp src/Timer.cpp src/Benders.cpp src/Arrangement.cpp)
 target_compile_definitions(BC-BD PUBLIC BENDERS)
+
+set_property(TARGET BC PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreadedDebug")
+set_property(TARGET BC-PP PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreadedDebug")
+set_property(TARGET BC-TRI PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreadedDebug")
+set_property(TARGET BC-TRI-PP PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreadedDebug")
+set_property(TARGET BC-BD PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreadedDebug")
 
 #add_executable(ARR src/main.cpp src/Arrangement.cpp)
 #target_compile_definitions(ARR PUBLIC PREPROCESS_ARRANGEMENT)

@@ -83,7 +83,7 @@ void SolverGurobi::BuildModel() {
 
 void CutCallback::callback()
 {
-    if (where == GRB_CB_MIPNODE || where == GRB_CB_MIPSOL)
+    if (/*where == GRB_CB_MIPNODE || */ where == GRB_CB_MIPSOL)
     {
         int node_depth;
         double nd = where == GRB_CB_MIPNODE ? getDoubleInfo(GRB_CB_MIPNODE_NODCNT) : getDoubleInfo(GRB_CB_MIPSOL_NODCNT);
@@ -328,7 +328,7 @@ void SolverGurobi::AddCardinalityConstraint() {
     double rhs[1] = { double(instance_.n_ - 1) };
 #endif
     auto vars = model_->getVars();
-    GRBLinExpr* expr = new GRBLinExpr();
+    GRBLinExpr *expr = new GRBLinExpr();
     expr->addTerms(card_val.data(), vars, card_val.size());
     model_->addConstrs(expr, sense, rhs, nullptr, 1);
 #ifdef MAT  
@@ -531,11 +531,31 @@ double SolverGurobi::DfsComputeObj(vector<bool>& visited, int face, int count,
     double* x) {
     double obj = 0.;
 
-    for (auto e : instance_.edge_to_circle_)
+    //visited[face] = true;
+
+    //if (count) {
+    //    obj += instance_.face_area_[face];
+    //}
+
+    //for (const auto &e : instance_.face_graph_[face]) {
+    //    if (visited[e.to_])
+    //        continue;
+
+    //    int delta = 0;
+    //    for (int i : instance_.circle_to_edges_[e.circle_]) {
+    //        if (x[i] > 0.) {
+    //            delta += e.grows_ ? 1 : -1;
+    //            break;
+    //        }
+    //    }
+    //    obj += DfsComputeObj(visited, e.to_, count + delta, x);
+    //}
+
+    for (int e = 0; e < instance_.edges_.size(); ++e)
     {
         if (x[e])
         {
-            for (auto f : instance_.hitting_set_[e])
+            for (int f : instance_.hitting_set_[instance_.edge_to_circle_[e]])
             {
                 if (visited[f])
                     continue;
@@ -544,6 +564,7 @@ double SolverGurobi::DfsComputeObj(vector<bool>& visited, int face, int count,
             }
         }
     }
+
     return obj;
 }
 
