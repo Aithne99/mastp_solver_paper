@@ -106,6 +106,15 @@ double FaceArea(Instance &instance,
     auto p = PointDifference(approximate_source, approximate_center);
     auto q = PointDifference(approximate_target, approximate_center);
     double costheta = Dot(p, q) / r2;
+
+    // Round-off errors can cause costheta to be outside [-1, 1],
+    // which can cause acos(costheta) to evaluate to nan.
+    if (costheta > 1) {
+        costheta = 1.;
+    } else if (costheta < -1) {
+        costheta = -1;
+    }
+    
     double theta = acos(costheta);
 
     int face = he->face()->data();
