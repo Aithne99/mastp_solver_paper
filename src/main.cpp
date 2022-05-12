@@ -1,16 +1,16 @@
 #ifdef PREPROCESS_ARRANGEMENT
 #include "Arrangement.h"
-#endif
-#include "Instance.h"
+#else
 #include "SolverGurobi.h"
 #include "Timer.h"
+#endif
 #include <algorithm>
 #include <cassert>
 #include <iostream>
 #include <map>
 #include <set>
 #include <vector>
-#include "Arrangement.h"
+#include "Instance.h"
 
 using namespace std;
 
@@ -36,7 +36,7 @@ int main(int argc, char *argv[]) {
   instance.PrintArrangementData(argc, argv);
 #else
   instance.load(argc, argv);
-#endif
+
   Timer timer;
   timer.Start();
 
@@ -49,4 +49,5 @@ int main(int argc, char *argv[]) {
   std::cout << "Total time spent solving: " << timer.Read();
 
   _sleep(INT_MAX);
+#endif
 }

@@ -6,7 +6,7 @@ find_package(GUROBI REQUIRED)
 include_directories(${GUROBI_INCLUDE_DIRS})
 
 
-#set(CMAKE_CXX_FLAGS "-zstack-size=8684354560 -frounding-math -DIL_STD -g3 -pedantic -Wall -Wextra -Wshadow -fsanitize=address -fno-sanitize-recover=all -D_GLIBCXX_DEBUG -O2")
+#set(CMAKE_CXX_FLAGS "-zstack-size=8684354560 -frounding-math -DIL_STD -g3 -pedantic -Wall -Wextra -Wshadow -fsanitize=address -fno-sanitize-recover=all -D_GLIBCXX_DEBUG -O3")
 set(CMAKE_CXX_FLAGS "-EHsc -DIL_STD -D_GLIBCXX_DEBUG -O2")
 
 #find_package(CGAL  REQUIRED COMPONENTS Core)

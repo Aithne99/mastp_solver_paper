@@ -118,8 +118,10 @@ void CutCallback::callback()
 
         sort(secs.begin(), secs.end());
         reverse(secs.begin(), secs.end());
+#ifndef MAT
         if (!secs.empty())
             secs.resize(1);
+#endif
         for (const auto& sec : secs) {
             AddSEC(sec.second);
             num_cuts_added++;
@@ -201,6 +203,8 @@ void CutCallback::callback()
             //solver.stats_.objective_lower_bound_root_ = dual_bound;
         }
     }
+#ifndef  MAT
+
     if (where == GRB_CB_MIPNODE)
     {
             const Instance& instance = solver.instance_;
@@ -256,6 +260,7 @@ void CutCallback::callback()
             solver.benders_early_stop_ub = min(solver.benders_early_stop_ub, objval_p);
         //}
     }
+#endif
 }
 
 int SolverGurobi::ArcIndex(const int root, const int edge,
@@ -353,12 +358,42 @@ void SolverGurobi::AddCardinalityConstraint() {
 void SolverGurobi::AddCoveringConstraintsDFS(vector<bool>& visited, const int face,
     set<int>& circles) {
 
-    for (int i = 0; i < instance_.edges_.size(); ++i)
-    {
-        int circle = instance_.edge_to_circle_[i];
-        for (auto f : instance_.hitting_set_[circle])
-            AddCoveringConstraint(f, i);
+    visited[face] = true;
+
+    for (const int circle : circles) {
+        for (const int edge : instance_.circle_to_edges_[circle]) {
+            AddCoveringConstraint(face, edge);
+        }
     }
+
+    for (const auto& e : instance_.face_graph_[face]) {
+        if (visited[e.to_])
+            continue;
+
+        if (e.grows_) {
+            circles.insert(e.circle_);
+        }
+        else {
+            circles.erase(e.circle_);
+        }
+
+        AddCoveringConstraintsDFS(visited, e.to_, circles);
+
+        if (e.grows_) {
+            circles.erase(e.circle_);
+        }
+        else {
+            circles.insert(e.circle_);
+        }
+    }
+
+
+    //for (int i = 0; i < instance_.edges_.size(); ++i)
+    //{
+    //    int circle = instance_.edge_to_circle_[i];
+    //    for (auto f : instance_.hitting_set_[circle])
+    //        AddCoveringConstraint(f, i);
+    //}
 }
 
 void SolverGurobi::AddReducedCoveringConstraintsDFS(vector<bool>& visited,
