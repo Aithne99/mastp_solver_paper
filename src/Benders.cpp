@@ -47,13 +47,13 @@ void DFS(const Instance &instance, const vector<double> &x,
     // edges which are present in the current solution are always weighed by all the faces which are part of their hitting set AND haven't been counted yet
     for (int e = 0; e < instance.edges_.size(); ++e)
     {
-        if (x[e] == 1)
+        if (x[instance.edge_order[e]] >= 1 - 1.e-4)
         {
-            for (auto f : instance.hitting_set_[instance.edge_to_circle_[e]])
+            for (auto f : instance.hitting_set_[instance.edge_to_circle_[instance.edge_order[e]]])
             {
                 if (visited[f])
                     continue;
-                w[e] += instance.face_area_[f];
+                w[instance.edge_order[e]] += instance.face_area_[f];
                 visited[f] = true;
             }
         }
@@ -61,14 +61,14 @@ void DFS(const Instance &instance, const vector<double> &x,
     // edges which are not present in the current solution are weighed by the new faces they would be bringing in
     for (int e = 0; e < instance.edges_.size(); ++e)
     {
-        if (x[e] != 1)
+        if (x[instance.edge_order[e]] < 1.e-4)
         {
-            for (auto f : instance.hitting_set_[instance.edge_to_circle_[e]])
+            for (auto f : instance.hitting_set_[instance.edge_to_circle_[instance.edge_order[e]]])
             {
                 if (visited[f])
                     continue;
-                w[e] += instance.face_area_[f];
-                //visited[f] = true; // faces which would be brought into the solution by multiple currently inactive edges should be counted towards the weight of all edges they belong to
+                w[instance.edge_order[e]] += instance.face_area_[f];
+                visited[f] = true;
             }
         }
     }
@@ -89,6 +89,12 @@ vector<double> SeparateBendersCut(const Instance &instance,
     //std::cout << "\n Time spent in Benders DFS: " << timer.Read();
 
     double sum = 0.0;
+
+    //std::cout << "\nBenders coeffs: ";
+    //for (auto c : w)
+    //    std::cout << c << " ";
+
+    //std::cout << "\n";
 
     double ub_of_lb = 0.;
     for (int e = 0; e < instance.edges_.size(); e++)

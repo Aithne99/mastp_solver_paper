@@ -4,8 +4,13 @@
 #include <utility>
 #include <vector>
 #include <iostream>
+#include <algorithm>
+#include <random>
 
 using namespace std;
+
+extern std::random_device rd;
+extern std::mt19937 g;
 
 struct Instance {
   int n_;
@@ -23,6 +28,7 @@ struct Instance {
   };
 
   int num_faces_;
+  std::vector<int> edge_order;
   vector<vector<FaceAdjacency>> face_graph_;
   vector<int> inclusion_set_size_;
   vector<double> face_area_;
@@ -102,13 +108,13 @@ struct Instance {
       std::cin >>  n_;
       int size;
       std::cin >> size;
+
       for (int i = 0; i < size; ++i)
       {
           int p, q;
           std::cin >> p >> q;
           points_.push_back(std::make_pair(p, q));
       }
-      std::cout;
 
       std::cin >> size;
       for (int i = 0; i < size; ++i)
@@ -117,6 +123,15 @@ struct Instance {
           std::cin >> p >> q;
           edges_.push_back(std::make_pair(p, q));
       }
+
+      for (int i = 0; i < size; ++i)
+          edge_order.push_back(i);
+
+      std::shuffle(edge_order.begin(), edge_order.end(), g);
+
+      for (auto e : edge_order)
+          std::cout << e << " ";
+
 
       std::cin >> size;
       for (int i = 0; i < size; ++i)

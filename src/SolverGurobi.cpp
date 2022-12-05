@@ -86,7 +86,7 @@ void CutCallback::callback()
     if (/*where == GRB_CB_MIPNODE || */ where == GRB_CB_MIPSOL)
     {
         int node_depth;
-        double nd = where == GRB_CB_MIPNODE ? getDoubleInfo(GRB_CB_MIPNODE_NODCNT) : getDoubleInfo(GRB_CB_MIPSOL_NODCNT);
+        double nd = getDoubleInfo(GRB_CB_MIPSOL_NODCNT);
         node_depth = (int)nd;
         const Instance& instance = solver.instance_;
         auto& stats = solver.stats_;
@@ -207,19 +207,45 @@ void CutCallback::callback()
 
     if (where == GRB_CB_MIPNODE)
     {
-            const Instance& instance = solver.instance_;
+        const Instance& instance = solver.instance_;
 
-            solver.stats_.num_runs_heuristic_++;
+        auto vars = solver.model_->getVars();
+        int numVars = solver.model_->get(GRB_IntAttr_NumVars);
 
-            auto vars = solver.model_->getVars();
-            int numVars = solver.model_->get(GRB_IntAttr_NumVars);
-            double* x = getSolution(vars, numVars);
-            vector<int> tree = solver.ClosestTree(x);
-            solver.ImproveTree(tree);
+        double* x = getSolution(vars, numVars);
 
-            if (tree.size() != instance.n_ - 1) {
-                return;
+        static double* prevX = new double[instance.edges_.size()];
+        static bool filled = false;
+        if (!filled)
+        {
+            fill(prevX, prevX + numVars, 0);
+            filled = true;
+        }
+
+        bool runit = false;
+        for (int i = 0; i < instance.edges_.size(); ++i)
+        {
+            if (x[i] != prevX[i])
+            {
+                runit = true;
+                break;
             }
+        }
+
+        // since this is all deterministic, if we've improved one solution once, there is no point in doing the same for it 38926135325212314212 more times, right?
+        if (!runit)
+        {   
+            return;
+        }
+        copy(x, x + instance.edges_.size(), prevX);
+        vector<int> tree = solver.ClosestTree(x);
+        solver.ImproveTree(tree);
+
+        if (tree.size() != instance.n_ - 1) {
+            return;
+        }
+
+        solver.stats_.num_runs_heuristic_++;
 
 #ifdef BENDERS
             const int num_vars = instance.edges_.size() + 1;

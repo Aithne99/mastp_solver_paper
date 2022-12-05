@@ -14,6 +14,10 @@
 
 using namespace std;
 
+//std::random_device rd;
+std::mt19937 g(10);
+
+
 int main(int argc, char *argv[]) {
   Instance instance;
 
