@@ -127,7 +127,7 @@ struct Instance {
       for (int i = 0; i < size; ++i)
           edge_order.push_back(i);
 
-      std::shuffle(edge_order.begin(), edge_order.end(), g);
+      //std::shuffle(edge_order.begin(), edge_order.end(), g);
 
       for (auto e : edge_order)
           std::cout << e << " ";

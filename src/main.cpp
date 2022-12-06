@@ -19,39 +19,40 @@ std::mt19937 g(10);
 
 
 int main(int argc, char *argv[]) {
-  Instance instance;
+    Instance instance;
 
 #ifdef PREPROCESS_ARRANGEMENT
-  cin >> instance.n_;
-  for (int i = 0; i < instance.n_; i++) {
-      int x, y;
-      cin >> x >> y;
-      instance.points_.push_back({ x, y });
-  }
+    cin >> instance.n_;
+    for (int i = 0; i < instance.n_; i++) {
+        int x, y;
+        cin >> x >> y;
+        instance.points_.push_back({ x, y });
+    }
 
-  for (int i = 0; i < instance.n_; i++) {
-      for (int j = i + 1; j < instance.n_; j++) {
-          instance.edges_.push_back({ i, j });
-      }
-  }
+    for (int i = 0; i < instance.n_; i++) {
+        for (int j = i + 1; j < instance.n_; j++) {
+            instance.edges_.push_back({ i, j });
+        }
+    }
 
-  BuildArrangementData(instance);
+    BuildArrangementData(instance);
 
-  instance.PrintArrangementData(argc, argv);
+    instance.PrintArrangementData(argc, argv);
 #else
-  instance.load(argc, argv);
+    instance.load(argc, argv);
 
-  Timer timer;
-  timer.Start();
+    Timer timer;
+    timer.Start();
 
-  SolverGurobi solver(instance);
+    SolverGurobi solver(instance);
 //  solver.stats_.build_arrangement_time_ = timer.Read() / 1000.;
-  solver.stats_.num_faces_ = instance.num_faces_;
-  solver.BuildModel();
-  solver.Run();
-  timer.Pause();
-  std::cout << "Total time spent solving: " << timer.Read();
+    solver.stats_.num_faces_ = instance.num_faces_;
+    solver.BuildModel();
+    solver.Run();
+    timer.Pause();
 
-  _sleep(INT_MAX);
+    std::cout << '\a'; // beep
+
+    _sleep(INT_MAX);
 #endif
 }

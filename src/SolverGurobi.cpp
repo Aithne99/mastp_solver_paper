@@ -207,41 +207,22 @@ void CutCallback::callback()
 
     if (where == GRB_CB_MIPNODE)
     {
+        if (getIntInfo(GRB_CB_MIPNODE_STATUS) != GRB_OPTIMAL)
+        {
+            return;
+        }
         const Instance& instance = solver.instance_;
 
         auto vars = solver.model_->getVars();
         int numVars = solver.model_->get(GRB_IntAttr_NumVars);
 
-        double* x = getSolution(vars, numVars);
+        double* x = getNodeRel(vars, numVars);
 
-        static double* prevX = new double[instance.edges_.size()];
-        static bool filled = false;
-        if (!filled)
-        {
-            fill(prevX, prevX + numVars, 0);
-            filled = true;
-        }
-
-        bool runit = false;
-        for (int i = 0; i < instance.edges_.size(); ++i)
-        {
-            if (x[i] != prevX[i])
-            {
-                runit = true;
-                break;
-            }
-        }
-
-        // since this is all deterministic, if we've improved one solution once, there is no point in doing the same for it 38926135325212314212 more times, right?
-        if (!runit)
-        {   
-            return;
-        }
-        copy(x, x + instance.edges_.size(), prevX);
         vector<int> tree = solver.ClosestTree(x);
         solver.ImproveTree(tree);
 
         if (tree.size() != instance.n_ - 1) {
+            std::cout << "what" << '\n';
             return;
         }
 
