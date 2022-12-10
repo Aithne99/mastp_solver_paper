@@ -15,7 +15,7 @@
 using namespace std;
 
 //std::random_device rd;
-std::mt19937 g(10);
+std::mt19937 g(30);
 
 
 int main(int argc, char *argv[]) {
@@ -41,6 +41,24 @@ int main(int argc, char *argv[]) {
 #else
     instance.load(argc, argv);
 
+    std::vector<double> areas(instance.edges_.size());
+    for (int i = 0; i < instance.edges_.size(); ++i)
+    {
+        for (auto f : instance.hitting_set_[instance.edge_to_circle_[i]])
+        {
+            areas[i] += instance.face_area_[f];
+        }
+    }
+
+    std::sort(instance.edge_order.begin(), instance.edge_order.end(), [&areas](int left, int right) { return areas[left] > areas[right]; });
+
+    //std::sort(instance.edge_order.begin(), instance.edge_order.end(), [&instance](int left, int right) { return instance.hitting_set_[instance.edge_to_circle_[left]].size() < instance.hitting_set_[instance.edge_to_circle_[right]].size(); });
+
+    for (auto e : instance.edge_order)
+        std::cout << e << " ";
+
+    std::cout << std::endl;
+
     Timer timer;
     timer.Start();
 
@@ -52,6 +70,7 @@ int main(int argc, char *argv[]) {
     timer.Pause();
 
     std::cout << '\a'; // beep
+    std::cout << timer.Read();
 
     _sleep(INT_MAX);
 #endif

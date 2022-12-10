@@ -58,7 +58,7 @@ void DFS(const Instance &instance, const vector<double> &x,
             }
         }
     }
-    // edges which are not present in the current solution are weighed by the new faces they would be bringing in
+    // edges which are not present in the current solution are weighed by the new faces they would be bringing in AND haven't been counted yet
     for (int e = 0; e < instance.edges_.size(); ++e)
     {
         if (x[instance.edge_order[e]] < 1.e-4)

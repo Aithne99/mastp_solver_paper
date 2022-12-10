@@ -211,6 +211,7 @@ void CutCallback::callback()
         {
             return;
         }
+
         const Instance& instance = solver.instance_;
 
         auto vars = solver.model_->getVars();
